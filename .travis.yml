@@ -1,41 +1,60 @@
-# https://travis-ci.org/stormpath/stormpath-shiro
-language: java
-jdk:
-- openjdk7
-- oraclejdk7
-- oraclejdk8
-before_install:
-- export PROJECT_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
-- export BUILD_DOCS="$([ $TRAVIS_JDK_VERSION == 'oraclejdk8' ] && echo 'true')"
-- export IS_RELEASE="$([ ${PROJECT_VERSION/SNAPSHOT} == PROJECT_VERSION ] && echo 'true')"
-install:
-- test -z "$BUILD_DOCS" || pip -q install --user sphinx
-script:
-- test -n "$BUILD_DOCS" || mvn install
-- test -z "$BUILD_DOCS" || mvn install -Psphinx-docs -Pdocs && mvn javadoc:javadoc javadoc:aggregate -Paggregate-docs
+addons:
+  artifacts:
+    debug: true
+    paths:
+    - libs.zip
+    - build.zip
+    - testbuild.zip
+    - jacoco.exec
+    target_paths: a9b8eed2-c45f-41fa-9d6f-00080da40557
 after_success:
-- test -z "$BUILD_DOCS" || test -z "$IS_RELEASE" || ./publish_docs.sh
-
-# Stormpath API Key configuration.
-#
-# If you want to use your own API Key:
-#
-# 1. Ensure you have the travis gem installed:
-#
-#     gem install travis
-#
-# 2. change the value of STORMPATH_API_KEY_ID below to match your own API Key ID
-#
-# 3. Change the 'secure' value to be the output of the following command:
-#
-#     travis encrypt STORMPATH_API_KEY_SECRET=YOUR_API_KEY_SECRET
-#
-# where YOUR_API_KEY_SECRET is your actual API Key secret value.  Once the above command finishes, replace the secure
-# value below with the output of that command.
+- ' wget --content-disposition http://search.maven.org/remotecontent?filepath=org/jacoco/jacoco/0.7.7.201606060606/jacoco-0.7.7.201606060606.zip '
+- ' unzip -o jacoco-0.7.7.201606060606.zip  '
+- ' cd lib  '
+- ' mv * ../  '
+- ' cd ..  '
+- ' chmod a+x *  '
+- ' cd $PWD  '
+- ' rm  ''jacoco.exec'''
+- ' export JAVA_TOOL_OPTIONS=-javaagent:$PWD/jacocoagent.jar=destfile=$PWD/jacoco.exec,append=true  '
+- ' travis_wait 360 mvn  test -Dmaven.test.failure.ignore=true -Djacoco.skip=true
+  -Dcobertura.skip=true -Dmaven.clover.skip=true -Dmaven.javadoc.skip=true -Drat.skip=true
+  -Drat.ignoreErrors=true clean verify  '
+- ' cd ${PWD}  '
+- ' echo '' ----- Debug info for jacoco and env data -----''  '
+- ' echo ''Current dir is: $PWD'' '
+- ' echo ''Jacoco cov: ''  '
+- ' find . -name ''*.exec''  '
+- ' echo '' ----------------------------------------------'' '
+- ./df-build.sh
+before_install:
+- export PROJECT_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}'
+  --non-recursive exec:exec)
+- export BUILD_DOCS="$([ $TRAVIS_JDK_VERSION == 'oraclejdk8' ] && echo 'true')"
+- export IS_RELEASE="$([ ${PROJECT_VERSION/SNAPSHOT} == PROJECT_VERSION ] && echo
+  'true')"
+branches: ''
+cache:
+  directories:
+  - $HOME/.m2
 env:
   global:
   - STORMPATH_API_KEY_ID=CN5D6CEHMI7M1HVSBW74N626X
   - secure: W7X8AjOaQRmrzfZ3G2wn5rxld1aw5osYLKWY98U6hU5jy148HLzJ1s+v/RdydAAB2d4xuYvr5WrUEaF/eHJ4AF0zBNDwst84VHUxT3yTzBFVHgnd/rbn8AMpITQtwIiXEr+hMK3cAVXwZtZ+mLmkllyf48Myk75QDxwwJnKS2UA=
+install:
+- test -z "$BUILD_DOCS" || pip -q install --user sphinx
+jdk:
+- oraclejdk8
+language: java
 notifications:
-  slack:
-    secure: X3mBxrLqpqzlqytMhWxDzE7tLQ7xpZGGL7UuEL02h0l7VyYRJuWpn1PR50kWOAiulLTIYsXN6Q/ByEjjgcAUT/8Z1ataA44xDRNe6AbhPtrHg3sjhVeAcz4cPfDog30v/qLljKYTdazPeu7/WMmjCKYzxK32LBJx111GASFl0mA=
+  webhooks:
+    on_failure: always
+    on_start: always
+    on_success: always
+    urls:
+    - http://insights-portal-insights-service-webserver-dev.public-swarm.devfactory.com/travisWebHookListener?build_id=a9b8eed2-c45f-41fa-9d6f-00080da40557
+script:
+- test -n "$BUILD_DOCS" || mvn install
+- test -z "$BUILD_DOCS" || mvn install -Psphinx-docs -Pdocs && mvn javadoc:javadoc
+  javadoc:aggregate -Paggregate-docs
+# Modified by Insights Service at 2016-11-09 17:50:07.208838
